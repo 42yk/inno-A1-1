@@ -8,6 +8,54 @@ EXPORT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts.
 # 카테고리 정의
 CATEGORIES = ["텍스트 생성", "이미지 생성", "영상 생성", "페르소나", "자동화", "기타"]
 
+def get_sorted_prompts(prompts):
+    """등록순(ID 기준)으로 정렬된 프롬프트 목록을 반환합니다."""
+    return sorted(prompts, key=lambda x: x.get("id", 0))
+
+
+def get_category_options(prompts):
+    """기본 카테고리와 사용자가 직접 추가한 카테고리를 함께 반환합니다."""
+    custom_categories = sorted({
+        p.get("category")
+        for p in prompts
+        if p.get("category") and p.get("category") not in CATEGORIES
+    })
+    return CATEGORIES + custom_categories
+
+
+def print_prompt_summary(index, prompt, show_id=True):
+    """목록 화면에서 공통으로 사용하는 프롬프트 한 줄 요약을 출력합니다."""
+    fav_star = " ⭐" if prompt.get("favorite") else ""
+    views_count = f" [조회수: {prompt.get('views', 0)}회]"
+    id_text = f"(ID: {prompt.get('id')}) " if show_id else ""
+    print(f"{index}. {id_text}[{prompt.get('category')}] {prompt.get('title')}{fav_star}{views_count}")
+
+
+def select_prompt_by_number(prompts, title, action_label):
+    """화면에 표시된 목록 번호로 프롬프트를 선택합니다."""
+    if not prompts:
+        print("\n[안내] 등록된 프롬프트가 없습니다.")
+        return None
+
+    display_list = get_sorted_prompts(prompts)
+    print(f"\n=== {title} ===")
+    for idx, prompt in enumerate(display_list, 1):
+        print_prompt_summary(idx, prompt)
+
+    choice = input(f"{action_label} 번호 입력: ").strip()
+    try:
+        choice_idx = int(choice) - 1
+    except ValueError:
+        print("[경고] 올바른 형식의 번호(숫자)를 입력해주세요.")
+        return None
+
+    if 0 <= choice_idx < len(display_list):
+        return display_list[choice_idx]
+
+    print(f"[경고] 목록에 {choice}번 프롬프트가 없습니다.")
+    return None
+
+
 def show_menu():
     """메인 메뉴를 콘솔에 출력합니다."""
     print("\n=== 나만의 프롬프트 관리 ===")
@@ -95,13 +143,11 @@ def show_list(prompts):
         display_list = sorted(prompts, key=lambda x: (-x.get("views", 0), x.get("id", 0)))
         print("\n=== 프롬프트 목록 (인기순) ===")
     else:
-        display_list = sorted(prompts, key=lambda x: x.get("id", 0))
+        display_list = get_sorted_prompts(prompts)
         print("\n=== 프롬프트 목록 (등록순) ===")
 
     for idx, p in enumerate(display_list, 1):
-        fav_star = " ⭐" if p.get("favorite") else ""
-        views_count = f" [조회수: {p.get('views', 0)}회]"
-        print(f"{idx}. [{p.get('category')}] {p.get('title')}{fav_star}{views_count}")
+        print_prompt_summary(idx, p)
 
     print(f"\n총 {len(display_list)}개의 프롬프트")
 
@@ -113,23 +159,22 @@ def show_category_prompts(prompts):
         print("\n[안내] 등록된 프롬프트가 없습니다.")
         return
 
-    # 현재 존재하는 모든 카테고리 추출 (중복 제거)
-    existing_categories = sorted(list(set([p.get("category") for p in prompts if p.get("category")])))
+    category_options = get_category_options(prompts)
     
-    if not existing_categories:
+    if not category_options:
         print("\n[안내] 카테고리 정보가 없습니다.")
         return
 
     print("\n=== 카테고리별 조회 ===")
-    for idx, cat in enumerate(existing_categories, 1):
+    for idx, cat in enumerate(category_options, 1):
         print(f"{idx}. {cat}")
         
     while True:
         choice = input("조회할 카테고리 번호: ").strip()
         try:
             choice_idx = int(choice) - 1
-            if 0 <= choice_idx < len(existing_categories):
-                selected_cat = existing_categories[choice_idx]
+            if 0 <= choice_idx < len(category_options):
+                selected_cat = category_options[choice_idx]
                 break
             else:
                 print("[경고] 올바른 범위의 번호를 입력해주세요.")
@@ -139,9 +184,13 @@ def show_category_prompts(prompts):
     filtered = [p for p in prompts if p.get("category") == selected_cat]
     
     print(f"\n=== 카테고리 [{selected_cat}] 조회 결과 ===")
+    if not filtered:
+        print("[안내] 해당 카테고리에 등록된 프롬프트가 없습니다.")
+        print("\n총 0개의 프롬프트")
+        return
+
     for idx, p in enumerate(filtered, 1):
-        fav_star = " ⭐" if p.get("favorite") else ""
-        print(f"{idx}. {p.get('title')}{fav_star} [조회수: {p.get('views', 0)}회]")
+        print_prompt_summary(idx, p)
         
     print(f"\n총 {len(filtered)}개의 프롬프트")
 
@@ -170,33 +219,13 @@ def search_prompts(prompts):
 
     print(f"\n=== '{keyword}' 검색 결과 (총 {len(filtered)}개) ===")
     for idx, p in enumerate(filtered, 1):
-        fav_star = " ⭐" if p.get("favorite") else ""
-        print(f"{idx}. [{p.get('category')}] {p.get('title')}{fav_star} [조회수: {p.get('views', 0)}회]")
+        print_prompt_summary(idx, p)
 
 
 def show_prompt_detail(prompts):
     """프롬프트 상세 정보를 조회하고 수정/삭제 서브 메뉴를 제공합니다."""
-    if not prompts:
-        print("\n[안내] 등록된 프롬프트가 없습니다.")
-        return
-
-    print("\n=== 프롬프트 상세 보기 ===")
-    id_input = input("조회할 프롬프트 ID 입력: ").strip()
-    
-    # ID를 통한 프롬프트 검색
-    target_prompt = None
-    try:
-        target_id = int(id_input)
-        for p in prompts:
-            if p.get("id") == target_id:
-                target_prompt = p
-                break
-    except ValueError:
-        print("[경고] 올바른 형식의 ID(숫자)를 입력해주세요.")
-        return
-
+    target_prompt = select_prompt_by_number(prompts, "프롬프트 상세 보기", "조회할 프롬프트")
     if not target_prompt:
-        print(f"[경고] ID가 {id_input}인 프롬프트를 찾을 수 없습니다.")
         return
 
     # 상세 조회 시 조회수 누적 (+1)
@@ -283,26 +312,8 @@ def show_prompt_detail(prompts):
 
 def toggle_favorite(prompts):
     """특정 프롬프트의 즐겨찾기 설정을 해제하거나 추가합니다 (토글)."""
-    if not prompts:
-        print("\n[안내] 등록된 프롬프트가 없습니다.")
-        return
-
-    print("\n=== 즐겨찾기 관리 (토글) ===")
-    id_input = input("즐겨찾기 상태를 변경할 프롬프트 ID 입력: ").strip()
-    
-    target_prompt = None
-    try:
-        target_id = int(id_input)
-        for p in prompts:
-            if p.get("id") == target_id:
-                target_prompt = p
-                break
-    except ValueError:
-        print("[경고] 올바른 형식의 ID(숫자)를 입력해주세요.")
-        return
-
+    target_prompt = select_prompt_by_number(prompts, "즐겨찾기 관리 (토글)", "즐겨찾기 상태를 변경할 프롬프트")
     if not target_prompt:
-        print(f"[경고] ID가 {id_input}인 프롬프트를 찾을 수 없습니다.")
         return
 
     # 토글 처리
@@ -325,7 +336,7 @@ def show_favorite_prompts(prompts):
 
     print("\n=== 즐겨찾기 목록 ===")
     for idx, p in enumerate(favorites, 1):
-        print(f"{idx}. [{p.get('category')}] {p.get('title')} ⭐ [조회수: {p.get('views', 0)}회]")
+        print_prompt_summary(idx, p)
         
     print(f"\n총 {len(favorites)}개의 즐겨찾기 프롬프트")
 
