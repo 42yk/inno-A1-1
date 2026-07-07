@@ -32,6 +32,8 @@
 git log --oneline --graph --decorate --all
 ```
 
+![Git graph](dev-setting/git-graph.png)
+
 과제 요구사항 확인 포인트는 다음과 같습니다.
 
 - 최소 10개 이상의 의미 있는 커밋
