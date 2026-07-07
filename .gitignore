@@ -9,3 +9,4 @@ prompts.json
 prompts.md
 __pycache__/
 *.pyc
+subject.md
