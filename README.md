@@ -105,7 +105,11 @@ python3 prompt_manager.py
 
 #### Git 그래프 확인
 
-![Git 그래프 확인](dev-setting/git-graph.png)
+최종 제출 직전에 아래 명령을 실행한 터미널 화면을 캡처합니다. 커밋이 추가될 때마다 그래프 결과가 바뀌므로 README에는 고정 이미지를 넣지 않습니다.
+
+```bash
+git log --oneline --graph --decorate --all
+```
 
 ### 프로그램 실행 결과
 
